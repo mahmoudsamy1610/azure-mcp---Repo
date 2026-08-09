@@ -23,7 +23,10 @@ orchestrator calls `create-azure-bug` once per item in your list, and
   do not redefine it.
 - Traceability convention: every automated test carries its QA Test Case ID in a
   marker/docstring (`# TAG-TOPUP-TC-014`) — that's how you map a failing test back to
-  a Test Case work item.
+  a Test Case work item — **and its parent backlog item as an `@pytest.mark.pbi_<id>`
+  marker** (Axis B in `automation-standards.md`), surfaced in Allure as the `pbi` label.
+  That marker is where the PBI ID comes from; `create-azure-bug` needs it for the
+  `PBI:<id>` tag and the `[<PBI ID>]` title prefix.
 
 ---
 
@@ -36,6 +39,8 @@ orchestrator calls `create-azure-bug` once per item in your list, and
 2. **For each failed test, extract:**
    - `test_name` — the pytest node id / test function name.
    - `test_case_id` — resolved from the traceability marker.
+   - `pbi_id` — resolved from the test's `@pytest.mark.pbi_<id>` marker (or the Allure
+     `pbi` label). `NO-PBI` / marker absent → report it as unmapped; never guess.
    - `error_message` — the assertion/exception message.
    - `expected_result` / `actual_result` — from the test's own assertion if derivable,
      else leave `expected_result` blank (the skill falls back sensibly).
@@ -59,9 +64,11 @@ orchestrator calls `create-azure-bug` once per item in your list, and
   ones currently in the suite. If a failure looks like flakiness or an environment
   issue rather than a product defect, say so in your notes — but still include it in
   the list. Filtering it out is not your call.
-- **Don't guess a Test Case ID.** If a failing test has no traceability marker, flag it
-  explicitly as unmapped rather than inventing or omitting silently — that test cannot
-  be bug-filed without a Test Case to link to.
+- **Don't guess a Test Case ID or a PBI ID.** If a failing test has no traceability
+  marker, flag it explicitly as unmapped rather than inventing or omitting silently —
+  that test cannot be bug-filed without a Test Case to link to. Same for a missing
+  `pbi_<id>` marker: report it unmapped and let `create-azure-bug` fall back to
+  `TestedBy-Reverse` resolution — do not supply an ID you didn't read off the test.
 - **Read, don't write.** You have no MCP access and no Azure DevOps credentials in
   scope. If something looks like it needs a write (filing, updating, reopening), that's
   the orchestrator's job via `create-azure-bug` — you only ever hand back data.

@@ -28,7 +28,13 @@ user needs first.)
      and Allure setup, and add their own `core/web` + `web/` or `core/mobile` + `mobile/`
      trees. Build the shared base once, then each tree.
 3. **Generate the tree** at `./automation/` exactly as in the contract: `README.md`,
-   `requirements.txt` (pinned), `pytest.ini` (markers + `--alluredir`), `.env.example`
+   `requirements.txt` (pinned), `pytest.ini` (seed markers + `--alluredir` — register
+   Axis 1 `regression` and every Axis 3 Platform value valid on the active project now;
+   Axis 2/4/5 markers and the Axis B `pbi_<id>` backlog markers are project-specific and
+   get registered incrementally by `automate-test-case` as it authors the first test for
+   each module/category/keyword/backlog item —
+   leave a comment block in `pytest.ini` noting that convention so it isn't mistaken for
+   an oversight), `.env.example`
    (every config value, each with a realistic example — base URLs, `ENV=dev|staging|uat|prod`,
    credential placeholders, viewport overrides, Appium caps), `conftest.py` (config +
    driver/browser fixtures + screenshot-on-failure + video/recording **explicitly

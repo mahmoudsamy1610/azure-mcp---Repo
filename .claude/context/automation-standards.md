@@ -210,24 +210,54 @@ Locator hygiene:
   case specifies (`Top-up = 50 QAR`), via a data builder/fixture, not hard-coded literals
   scattered in the test body.
 - Every test carries the QA **traceability ID** in a marker/docstring
-  (`# TAG-TOPUP-TC-014`) so an automated test maps back to its source case.
+  (`# TAG-TOPUP-TC-014`) so an automated test maps back to its source case, **and the
+  parent backlog item ID** as an `@pytest.mark.pbi_<id>` marker (Axis B below) so it
+  also maps back to the PBI the case was derived from.
 
-### pytest markers ↔ QA lifecycle tags
+### pytest markers ↔ QA tag axes — every axis gets a mark
 
-Markers mirror the Azure lifecycle tags (from the project's tag taxonomy — ask the
-user if not provided) so the suite slices the same way the test cases do:
+A test's markers are **derived mechanically from its source case's `Tags`**, one mark per
+axis present on the case (never invented, never skipped). This is what lets
+`pytest -m <mark>` slice the suite exactly like an Azure `Tag =` query would. The full
+tag taxonomy (all axes, current values) lives in the project's `active/standards.md` —
+read it before authoring markers; do not hardcode axis values here.
 
-| Marker | Mirrors tag | Meaning |
-|---|---|---|
-| `@pytest.mark.regression` | `Regression` | The **critical re-run subset** — run on every change. A subset of the automated suite, not all of it. |
-| `@pytest.mark.web` · `@pytest.mark.ios` · `@pytest.mark.android` · `@pytest.mark.control_panel` | Platform (`Web` / `IOS` / `Android` / `Control_Panel`) | Surface selector — mirrors the Platform axis exactly. |
+| Axis | Source tag(s) | Marker | Meaning |
+|---|---|---|---|
+| **1 — Lifecycle** | `Regression` | `@pytest.mark.regression` | The **critical re-run subset** — run on every change. A subset of the automated suite, not all of it. `UAT` gets no marker (it drives the client doc, not a pytest slice). |
+| **1b — Execution method** | `Automation` / `Manual` | *(none)* | The automated suite itself = every case tagged `Automation`; `Manual` cases are never authored as tests. No `automation`/`manual` marker needed — a test's mere existence means `Automation`. |
+| **2 — Service/Module** | e.g. `SRV`, `CMT`, `GLOBAL` (project-specific list) | `@pytest.mark.<module_lower>` (e.g. `@pytest.mark.srv`, `@pytest.mark.cmt`) | Module selector — lets a run target one feature area. |
+| **3 — Platform/Surface** | `Web` / `Control_Panel` (or `IOS`/`Android` on projects that have a mobile app) | `@pytest.mark.web` · `@pytest.mark.control_panel` · `@pytest.mark.ios` · `@pytest.mark.android` | Surface selector — mirrors the Platform axis exactly. Only the values valid on the active project apply. |
+| **4 — Category** | `UI` / `Compatibility` / `Auth` / `Functional-High` / `Functional-Low` / `API` / `Edge` | `@pytest.mark.<category_snake_case>` (e.g. `@pytest.mark.functional_high`, `@pytest.mark.edge`) | Category selector — e.g. run only `edge` cases after a risky change. |
+| **5 — Business keyword** *(optional axis)* | e.g. `Bilingual`, `RTL`, `Workflow` (project-specific list) | `@pytest.mark.<keyword_lower>` (e.g. `@pytest.mark.bilingual`, `@pytest.mark.rtl`) | Cross-cutting selector — e.g. run every `rtl` test regardless of module. Applied only when the case actually carries a business keyword; not mandatory per test. |
+| **B — Backlog traceability** *(marker-only — **not** a `Tags` axis)* | The parent PBI / backlog item ID — **not** a tag on the case. Source: the PBI ID handed to `route-automation` / `automate-test-case`, or the case's `TestedBy-Reverse` link (the same resolution `create_bug()` uses for its `PBI:<id>` tag). | `@pytest.mark.pbi_<id>` (e.g. `@pytest.mark.pbi_45231`) | Backlog selector — `pytest -m pbi_45231` runs every automated test derived from one PBI. Also feeds bug filing: `quality-control-engineer` reads the ID off this marker, so `create-azure-bug` gets the `PBI:<id>` tag and the `[<PBI ID>]` title prefix without an extra Azure lookup. |
 
-The **automated suite itself = every case tagged `Automation`** (the broad automatable set
-the Automation engineer classified pre-injection); a `Manual`-tagged case has no test at
-all. So there is **no `automation` / `manual` marker** — every test that exists is by
-definition an `Automation` case, and `Manual` cases are never authored. `regression` marks
-the critical subset *within* the suite. There are no `smoke` / `sanity` markers (those
-tags were removed). Register every marker in `pytest.ini` (no unknown-marker warnings).
+Rules:
+- A test carries **one marker per axis the case's `Tags` actually populate** — Axis 1
+  (if `Regression`), Axis 2, Axis 3 (one or more), Axis 4, Axis 5 (if present). A case
+  with both `Web` and `Control_Panel` tags gets both markers on its test (or, if the
+  feature needed two separate tests per surface, one marker per test).
+- **Marker naming:** lowercase, `snake_case`, hyphens/spaces in the tag become
+  underscores (`Functional-Low` → `functional_low`). Keep the mapping deterministic so
+  the same tag always produces the same marker.
+- There are no `smoke` / `sanity` markers (those tags were removed from the taxonomy).
+- **Axis B is mandatory on every test and is derived from the work-item link, not from
+  `Tags`.** It is lettered, not numbered, precisely because the numbered axes 0–5 are the
+  `Tags` taxonomy in `active/standards.md` (Axis 0 there is the MCP provenance tag
+  `Ai_MCP_Injected`) — `pbi_<id>` must never be written back to a case's `Tags` or passed
+  through `inject-test-cases`. Marker name is `pbi_` + the numeric ID, nothing else
+  (`pbi_45231`); the argument form `@pytest.mark.pbi("45231")` is **not** used because
+  `-m` cannot filter marker arguments, which loses the per-backlog run selector.
+- **Also emit the backlog ID into Allure** — `allure.label("pbi", "<id>")` (alongside the
+  existing title/severity) so the report groups by backlog item, not only pytest.
+- **A test with no resolvable backlog ID is a defect, not a silent pass.** Record
+  `NO-PBI` in the docstring, apply no `pbi_*` marker, and let the structure & redundancy
+  scan flag it — mirroring the `NO-TC` rule in *Evidence file naming*.
+- **Register every marker in `pytest.ini`** (no unknown-marker warnings) — scaffolding
+  seeds the Axis 1/3 markers plus a placeholder block; `automate-test-case` **adds any
+  new Axis 2/4/5/B marker to `pytest.ini` the first time it's used** (a `pbi_<id>` line
+  per backlog item touched), so the registered list always matches what's actually
+  applied in code.
 
 ---
 
@@ -338,6 +368,18 @@ the app looked like*:
   a quiet xfail. Do not add `xfail`/`skip` on your own judgement to tidy a run — if a
   result is inconvenient, surface it to the QA Manager, don't bury it.
 
+**Healing touches locators, never the expected result:**
+- `extract-locators` healing re-derives a **broken selector** only. The QA case's
+  expected result (`expected_list` / assertion) is **not in scope** for healing — never
+  edit, loosen, or reword it to match what the app currently does.
+- This holds **even if the original expected result was assumed or weakly worded.** A
+  weak ER is a Phase-1 review-gate defect, fixed by the QA Manager/`qa-engineer` on the
+  **case**, not by the automation engineer during a locator-heal pass. Do not "fix" it
+  quietly mid-heal.
+- If the real assertion still fails after the locator is healed, **fail the test** — file
+  the bug (Phase 3b). Do not narrow, drop, or rewrite the assertion so the healed run
+  goes green.
+
 **Reporting honesty:** the run summary you hand back states the real numbers —
 passed / failed / xfailed / skipped — with the reason for every xfail/skip and the Bug ID
 where one applies. Never round a mixed result up to "green".
@@ -386,9 +428,15 @@ After **every** batch of test-case additions or changes, run a scan of the frame
    the same element across objects; no copy-pasted Page/Screen-Object methods that
    should be a shared component object or base helper.
 3. **Contract** — no raw driver imports in tests, no `sleep()`, no locators in tests,
-   all markers registered in `pytest.ini`; the web browser-factory viewport default is
-   still 1920×1080 (env-overridable) — per-test overrides go through the fixture, the
-   default is never edited.
+   all markers registered in `pytest.ini`; **every test carries a marker for each tag
+   axis its source case's `Tags` populate** (not just `regression`/platform — check
+   Service/Module, Category, and Business-keyword marks are also present where the case
+   has those tags); **every test carries its Axis B `@pytest.mark.pbi_<id>` marker** (a
+   test with no `pbi_*` marker and no `NO-PBI` note in its docstring is a finding — fix
+   it by resolving the backlog ID, not by deleting the note); the web browser-factory
+   viewport default is still 1920×1080
+   (env-overridable) — per-test overrides go through the fixture, the default is never
+   edited.
 
 Report the scan outcome explicitly: *clean*, or what was found and how it was fixed.
 
@@ -402,7 +450,10 @@ A test is done only when ALL hold:
   module; imports **no** raw driver.
 - All interactions go through Page/Screen Objects → wrappers; **zero `sleep()`**.
 - Locators came from `extract-locators` (MCP-driven) and follow the priority order.
-- Carries its QA traceability ID and the correct markers (`regression` etc.).
+- Carries its QA traceability ID, its **Axis B `@pytest.mark.pbi_<id>` backlog marker**
+  (plus the matching `allure.label("pbi", …)`), and **one marker per tag axis present on
+  the source case** (Lifecycle/`regression`, Service/Module, Platform, Category, Business
+  keyword where present) — not just `regression`/platform.
 - Independent, idempotent, parallel-safe; concrete data mirrored from the QA case.
 - Produces a clean Allure entry: titled, severity-tagged, steps named, screenshot+video
   attached on failure.

@@ -48,9 +48,39 @@ Normal mode it is the functional-focused subset. If an **in-scope** category gen
 doesn't apply to the feature, say so and why.
 
 ## 1. UI Test Cases
-Layout, alignment, responsiveness, labels, fonts, colors, spacing, RTL/Arabic
-rendering, empty/loading/error states, accessibility basics, cross-screen
-consistency, localization.
+
+> **Design source first.** Every UI case is verified against a **clear design** when one
+> is available (Figma link → `verify-figma-design`, or PBI images — see the design
+> source cascade in `CLAUDE.md`). **If no design is provided**, the UI is understood
+> from the requirements/description instead — derive the expected layout, elements, and
+> states from spec text and state each derivation as an assumption. Either way, coverage
+> below is produced against a stated basis, never guessed freeform.
+
+Work through UI coverage **page by page / section by section**, across the full flow in
+scope — not as one flat list. For each page/section:
+
+1. **Element inventory, by type.** List every element present and verify it against
+   what its **type** requires — a button (label, enabled/disabled, click action), an
+   input (format, placeholder, character limit), a dropdown (options, default, search),
+   a checkbox/radio/toggle (initial state, mutual exclusivity), a tab/accordion
+   (expand/collapse, active indicator), a modal/popup, a table (sorting, pagination,
+   empty state), etc. What counts as "verified" differs per element type — don't apply
+   one generic check to every control.
+2. **State coverage, per element.** Each element is checked across every state that
+   applies to it — default, hover, focus, active/pressed, disabled, loading, error/
+   invalid, empty, read-only, selected — not just its default render.
+3. **Responsive coverage, always.** Every element/state pass above is repeated across
+   breakpoints — **mobile sizes** (by resizing the browser to mobile widths, not just a
+   device label), **tablet sizes**, and **desktop/web sizes** — checking layout,
+   alignment, wrapping, overflow, and touch-target sizing at each.
+4. **Localization coverage, per available language.** All of the above (element type,
+   states, responsive) is repeated across **every language/locale the project actually
+   supports** — RTL/LTR flip, text expansion/truncation, font rendering, mirrored
+   layout — per the project's configured localization, not a fixed assumption.
+5. **Full-scope distribution.** Apply this page-by-page / section-by-section, across the
+   **entire flow in scope** — including pop-ups, overlays, modals, and every page state
+   (loading, empty, error, success) — not only the default happy-path render of the main
+   page.
 
 ## 2. Compatibility Test Cases
 Supported browsers, OS versions, devices, screen sizes/orientations; light/dark mode;

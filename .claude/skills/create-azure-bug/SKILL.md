@@ -25,6 +25,10 @@ repro steps if known, a screenshot path if one was captured, and the run/report 
    (`# TAG-TOPUP-TC-014`) maps to an Azure Test Case work item ID. If only the marker
    string is available, resolve it to a numeric ID before continuing (e.g. via the
    suite/PBI context already in hand) — `create_bug` needs the numeric ID.
+1b. **Take the PBI ID from the failure entry** — `quality-control-engineer` reads it off
+   the test's `@pytest.mark.pbi_<id>` backlog marker (Axis B). It drives the `PBI:<id>`
+   tag and the `[<PBI ID>]` title prefix. If the entry reports it unmapped, fall back to
+   `create_bug`'s own `TestedBy-Reverse` resolution — never invent an ID.
 2. **Dedup check** — call `find_existing_bug(test_case_id)`.
 3. **If `exists: true`** — call `add_bug_occurrence(bug_id, error_message, run_url)`.
    Done; report which bug was updated and whether it was reopened from `Resolved`.

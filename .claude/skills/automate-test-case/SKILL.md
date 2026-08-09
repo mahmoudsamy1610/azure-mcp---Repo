@@ -45,20 +45,32 @@ no approved case is in hand, stop — route to `analyze-pbi` / `quick-test-cases
      queries; no asserts, no `sleep`, no test data inside.
    - **Test** — AAA shape, concrete data **mirrored from the case** (e.g. `Top-up = 50
      QAR`), assertions in the test, wrapped meaningful steps in `allure.step(...)`.
-   - **Tag it** — markers per the case's lifecycle tags (`regression` / `smoke` /
-     `sanity` + `web`/`mobile`) and the QA **traceability ID** in a marker/docstring
-     (e.g. `# TAG-TOPUP-TC-014`).
+   - **Tag it** — derive one marker per tag axis present on the case's `Tags` (per
+     `automation-standards.md`'s *pytest markers ↔ QA tag axes* table): Lifecycle
+     (`regression`, if tagged), Service/Module, Platform (`web`/`control_panel`/etc.),
+     Category (`ui`/`functional_high`/`edge`/etc.), and Business keyword if present.
+     Never apply only lifecycle + platform and drop the rest. Then add the **Axis B
+     backlog marker** `@pytest.mark.pbi_<id>` — the parent PBI ID supplied by
+     `route-automation` (or resolved from the case's `TestedBy-Reverse` link), plus
+     `allure.label("pbi", "<id>")`. If a derived marker isn't yet in `pytest.ini`
+     (including the `pbi_<id>` line), add it there in this same step. Also add the QA
+     **traceability ID** in a marker/docstring (e.g. `# TAG-TOPUP-TC-014 | PBI 45231`).
+     If no backlog ID is resolvable, write `NO-PBI` in the docstring, apply no `pbi_*`
+     marker, and report it as a finding — never guess an ID.
 6. **Run the structure & redundancy scan** — mandatory after every batch, per the
    *Structure & redundancy scan* section of `automation-standards.md`: per-page folders
-   respected, no one-file-per-case modules, no duplicate tests/locators/POM methods, no
-   contract violations. Fix findings before proceeding, and include the scan outcome in
-   the report.
+   respected, no one-file-per-case modules, no duplicate tests/locators/POM methods,
+   **every test carries a marker per tag axis its case actually has** (not just
+   regression/platform) **plus its Axis B `pbi_<id>` backlog marker**, no contract
+   violations. Fix findings before proceeding, and
+   include the scan outcome in the report.
 7. **Validate against the Definition of Done** — no raw driver in the test, locators from
    `extract-locators`, independent/idempotent, Allure title + severity (from QA priority).
    Run the single test (or its marker) and confirm green on a clean state; for mobile
    without a device, statically validate and state that execution is pending the
    environment — never claim an unobserved pass.
-8. **Report** — files added/changed, the marker(s) and traceability ID applied, the scan
+8. **Report** — files added/changed, the marker(s) applied (including the `pbi_<id>`
+   backlog marker) and traceability ID applied, the scan
    outcome, and the run result (or why it couldn't run yet). For full-suite runs, use
    `run-automation`.
 

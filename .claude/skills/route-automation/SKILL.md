@@ -68,7 +68,10 @@ surface, and delegates the implementation work — never authoring tests itself.
    - `ios_set` → not delegated on a non-macOS host — surfaced as skipped.
 
    For each engineer call: pass the case IDs + titles + steps from Azure verbatim;
-   do not re-author or reinterpret content.
+   do not re-author or reinterpret content. **Also pass the parent PBI ID
+   (`$ARGUMENTS`) explicitly** — it becomes each test's Axis B `@pytest.mark.pbi_<id>`
+   backlog marker (`automation-standards.md` → *pytest markers ↔ QA tag axes*). Without
+   it the engineer has to fall back to per-case `TestedBy-Reverse` resolution.
 
 8. **Consolidate the report.** When the engineers return, produce a single summary:
    - per surface: cases attempted, cases automated successfully, cases blocked
